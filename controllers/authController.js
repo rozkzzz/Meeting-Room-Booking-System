@@ -1,3 +1,4 @@
+const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const pool = require('../data/db');
 
@@ -50,37 +51,66 @@ async function register(req, res) {
 }
 
 async function login(req, res) {
-    const { username, password } = req.body;
+    const { username, password } = req.body ?? {};
+    
+    if(typeof username !== 'string' || typeof password !== 'string'){
+        res.status(400).json({
+        message: 'invalid username or password',
+        });
+        return;
+    }
 
-    const [rows] = await pool.execute(
+    let Login_user = username.trim();
+    if (Login_user === '' || password.trim() === '') {
+        return res.status(400).json({
+            message: 'invalid username or password'
+        });
+    }
+    try{
+        
+        const [rows] = await pool.execute(
         'SELECT id, username, password_hash, role, status FROM users WHERE username = ?',
-        [username]
+        [Login_user]
     );
-
-    if(rows.length === 0){
+        if(rows.length === 0){
         return res.status(401).json({
             message: 'Invalid username or password'
         });
-    }
+        }
+       
+        const user = rows[0];
+        const isMatch = await bcrypt.compare(
+            password,
+            user.password_hash
+        );
 
-    const user = rows[0];
-    const isMatch = await bcrypt.compare(
-        password,
-        user.password_hash
-    );
-    
-    if (isMatch){
+        if (!isMatch){
+            return res.status(401).json({
+            message: 'Invalid username or password'
+        })}
+
+         const token = jwt.sign(
+        { sub: String(user.id) },
+        process.env.JWT_SECRET,
+        { expiresIn: '1h' }
+        );
+
+        
+
         return res.status(200).json({
             "message": "Login successful",
             "user": {
                 "id": user.id,
                 "username": user.username,
                 "role": user.role,
-                "status": user.status}
-        })
-    }else{
-        return res.status(401).json({
-            message: 'Invalid username or password'
+                "status": user.status
+            },
+            "token": token})
+    }catch(error){
+        console.error('Login failed:', error);
+
+        return res.status(500).json({
+            message: 'Internal server error'
         });
     }
 }
