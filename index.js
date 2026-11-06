@@ -1,10 +1,12 @@
 const express = require('express');
 const pool = require('./data/db');
 const authRoutes = require('./routes/authRoutes');
+const adminRoutes = require('./routes/adminRoutes');
 const app = express();
 
 app.use(express.json());
 app.use('/auth',authRoutes);
+app.use('/admin', adminRoutes);
 app.get('/health',(req,res)=>{
     res.status(200).json({
         status: "ok",
