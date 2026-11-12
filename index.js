@@ -2,11 +2,15 @@ const express = require('express');
 const pool = require('./data/db');
 const authRoutes = require('./routes/authRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const roomRoutes = require('./routes/roomRoutes');
+const bookingRoutes = require('./routes/bookingRoutes');
 const app = express();
 
 app.use(express.json());
 app.use('/auth',authRoutes);
 app.use('/admin', adminRoutes);
+app.use('/rooms', roomRoutes);
+app.use('/bookings', bookingRoutes);
 app.get('/health',(req,res)=>{
     res.status(200).json({
         status: "ok",
