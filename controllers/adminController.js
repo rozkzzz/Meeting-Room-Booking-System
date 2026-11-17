@@ -51,12 +51,6 @@ async function approveUser(req, res) {
 async function getAllBookings(req, res) {
     try {
         const [rows] = await pool.execute('SELECT b.id, b.user_id, u.username, b.room_id, r.name AS room_name, b.start_time, b.end_time, b.status, b.cancelled_at FROM bookings AS b JOIN users AS u ON b.user_id = u.id JOIN rooms AS r ON b.room_id = r.id ORDER BY b.start_time DESC;');
-        return res.status(200).jsom(rows)
-        // TODO 1: SELECT Booking ทั้งหมด
-
-        // TODO 2: JOIN ตาราง users และ rooms
-
-        // TODO 3: ส่ง Array ด้วย HTTP 200
 
     } catch (error) {
         console.error(error);
