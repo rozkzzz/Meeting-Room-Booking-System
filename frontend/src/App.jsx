@@ -8,6 +8,10 @@ function App() {
   const [message, setMessage] = useState('');
   const [token, setToken] = useState(null);
   const [profile, setProfile] = useState(null);
+  const [rooms, setRooms] = useState([]);
+  const [view, setView] = useState('dashboard');
+  const [roomError, setRoomError] = useState('');
+
 
   async function handleLogin(event) {
     event.preventDefault();
@@ -70,35 +74,62 @@ function App() {
     }
   }
 
+  async function loadRooms() {
+    setView('rooms');
+    setRoomError('');
+
+    try {
+      const response = await fetch('/api/rooms', {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      const data = [];
+      if (response.ok){
+        data = response.json;
+        setRooms(data);
+        return;
+      }
+      return;
+
+    } catch (error) {
+      console.error(error);
+      setRoomError('Cannot load rooms');
+    }
+  }
   const currentUser = profile?.user ?? profile;
   return (
     <div>
       <h1>Meeting Room Booking</h1>
-      <p>{profile}</p>
-      {profile ? (<>
-        <p>Welcome to Dashboard</p>
-        <p>Welcome, {profile.user}</p>
-        <p>Role: {profile.user.role}</p>
+      {currentUser ? (
+        <>
+          <h2>Welcome, {currentUser.username}</h2>
+          <p>Role: {currentUser.role}</p>
 
-        {profile.status === 'pending' ? (
-          <p>Waiting for admin approval</p>
-        ) : (
-          <>
-            <button type="button">Book Room</button>
-            <button type="button">My Bookings</button>
+          {currentUser.status !== 'active' ? (
+            <p>
+              {currentUser.status === 'pending'
+                ? 'Waiting for admin approval'
+                : 'Account is not active'}
+            </p>
+          ) : (
+            <>
+              <button type="button" onClick={loadRooms}>Book Room</button>
+              <button type="button">My Bookings</button>
 
-            {profile.role === 'admin' && (
-              <>
-                <button type="button">Manage Rooms</button>
-                <button type="button">All Bookings</button>
-              </>
-            )}
-          </>
-        )}
+              {currentUser.role === 'admin' && (
+                <>
+                  <button type="button">Manage Rooms</button>
+                  <button type="button">All Bookings</button>
+                </>
+              )}
+            </>
+          )}
 
-
-        <button type="button" onClick={handleLogout}>Logout</button>
-      </>
+          <button type="button" onClick={handleLogout}>
+            Logout
+          </button>
+        </>
       ) : (
         <form onSubmit={handleLogin}>
           <div className="container">
