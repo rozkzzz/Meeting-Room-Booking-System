@@ -11,6 +11,10 @@ function App() {
   const [rooms, setRooms] = useState([]);
   const [view, setView] = useState('dashboard');
   const [roomError, setRoomError] = useState('');
+  const [selectedRoom, setSelectedRoom] = useState(null);
+  const [startTime, setStartTime] = useState('');
+  const [endTime, setEndTime] = useState('');
+  const [bookingMessage, setBookingMessage] = useState('');
 
 
   async function handleLogin(event) {
@@ -49,6 +53,13 @@ function App() {
     setUsername('');
     setPassword('');
     setMessage('');
+
+    setView('dashboard');
+    setRooms([]);
+    setRoomError('');
+    setSelectedRoom(null);
+    setStartTime('');
+    setEndTime('');
   }
 
   async function loadProfile(jwt) {
@@ -84,12 +95,13 @@ function App() {
           Authorization: `Bearer ${token}`
         }
       });
-      const data = [];
-      if (response.ok){
-        data = response.json;
+      if (response.ok) {
+        const data = await response.json();
         setRooms(data);
         return;
-      }
+      } else
+        setRoomError('Cannot load rooms');
+
       return;
 
     } catch (error) {
@@ -107,14 +119,70 @@ function App() {
           <p>Role: {currentUser.role}</p>
 
           {currentUser.status !== 'active' ? (
-            <p>
-              {currentUser.status === 'pending'
-                ? 'Waiting for admin approval'
-                : 'Account is not active'}
-            </p>
+            <p>Account is not active</p>
+          ) : view === 'rooms' ? (
+            <div>
+              <h2>Meeting Rooms</h2>
+
+              {roomError ? (
+                <p>{roomError}</p>
+              ) : rooms.length === 0 ? (
+                <p>No rooms available</p>
+              ) : (
+                rooms.map((room) => (
+                  <div key={room.id}>
+                    <h3>{room.name}</h3>
+                    <p>Capacity: {room.capacity}</p>
+
+                    <button type="button" onClick={() => setSelectedRoom(room.id)}>
+                      Select Room
+                    </button>
+                  </div>
+                ))
+              )}
+              {selectedRoom !== null && (<>
+                <p>{selectedRoom}</p>
+                <label htmlFor="Start_Time">Start Time</label>
+                <input
+                  id="Start_Time"
+                  type="datetime-local"
+                  value={startTime}
+                  onChange={(event) => setStartTime(event.target.value)}
+                  placeholder="Enter StartTime"
+                  name="Start_Time"
+                  required
+                />
+
+                <label htmlFor="End_Time">End Time</label>
+                <input
+                  id="End_Time"
+                  type="datetime-local"
+                  value={endTime}
+                  onChange={(event) => setEndTime(event.target.value)}
+                  placeholder="Enter EndTime"
+                  name="End_Time" s
+                  required
+                />
+
+                {Boolean(startTime && endTime) && (
+                  <button
+                    type="button"
+                  >Confirm Booking</button>
+                )}
+              </>)}
+              <button
+                type="button"
+                onClick={() => setView('dashboard')}
+              >
+                Back to Dashboard
+              </button>
+            </div>
           ) : (
             <>
-              <button type="button" onClick={loadRooms}>Book Room</button>
+              <button type="button" onClick={loadRooms}>
+                Book Room
+              </button>
+
               <button type="button">My Bookings</button>
 
               {currentUser.role === 'admin' && (
@@ -160,8 +228,7 @@ function App() {
           </div>
         </form>
       )}
-
-    </div>
+    </div >
   );
 }
 
