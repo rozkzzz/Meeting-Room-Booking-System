@@ -1,6 +1,8 @@
 import './App.css';
 import { useState } from 'react';
-
+import LoginPage from './pages/LoginPage';
+import DashboardPage from './pages/DashboardPage';
+import RoomsPage from './pages/RoomsPage';
 
 function App() {
   const [Username, setUsername] = useState('');
@@ -15,6 +17,8 @@ function App() {
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
   const [bookingMessage, setBookingMessage] = useState('');
+  const [myBookings, setMyBookings] = useState([]);
+  const [bookingError, setBookingError] = useState('');
 
 
   async function handleLogin(event) {
@@ -53,13 +57,15 @@ function App() {
     setUsername('');
     setPassword('');
     setMessage('');
-
     setView('dashboard');
     setRooms([]);
     setRoomError('');
     setSelectedRoom(null);
     setStartTime('');
     setEndTime('');
+    setBookingMessage('');
+    setMyBookings([]);
+    setBookingError('');
   }
 
   async function loadProfile(jwt) {
@@ -109,6 +115,88 @@ function App() {
       setRoomError('Cannot load rooms');
     }
   }
+
+  async function loadMyBookings() {
+    setBookingError('');
+    setView('myBookings');
+    try {
+      const response = await fetch('/api/bookings/my', {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      if (!response.ok) {
+        setBookingError("Can't load bookings");
+        return;
+      }
+
+      const data = await response.json();
+
+      setMyBookings(data);
+
+    } catch (error) {
+      console.error(error);
+      setBookingError('Cannot load bookings');
+    }
+  }
+
+  async function submitBooking() {
+    setBookingMessage('');
+
+    try {
+      const response = await fetch('/api/bookings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+
+        body: JSON.stringify({
+          room_id: selectedRoom,
+          start_time: startTime.replace('T', ' ') + ':00',
+          end_time: endTime.replace('T', ' ') + ':00'
+        })
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        setBookingMessage('Booking successful');
+      } else {
+        setBookingMessage(data.message || 'Booking failed');
+      }
+
+    } catch (error) {
+      console.error(error);
+      setBookingMessage('Cannot connect to server');
+    }
+  }
+
+  async function cancelBooking(bookingId) {
+    setBookingError('');
+
+    try {
+      const response = await fetch(
+        `/api/bookings/${bookingId}/cancel`,
+        {
+          method: 'PATCH',
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+
+        setBookingError(data.message || 'Cancel failed');
+        return;
+      }
+      await loadMyBookings();
+
+    } catch (error) {
+      console.error(error);
+      setBookingError('Cannot cancel booking');
+    }
+  }
   const currentUser = profile?.user ?? profile;
   return (
     <div>
@@ -121,55 +209,46 @@ function App() {
           {currentUser.status !== 'active' ? (
             <p>Account is not active</p>
           ) : view === 'rooms' ? (
+            <RoomsPage
+            rooms={rooms}
+            roomError={roomError}
+            selectedRoom={selectedRoom}
+            startTime={startTime}
+            endTime={endTime}
+            bookingMessage={bookingMessage}
+            onSelectRoom={selectedRoom}
+            onStartTimeChange={setStartTime}
+            onEndTimeChange={setEndTime}
+            onSubmitBooking={submitBooking}
+            onBack={setView}
+            />
+          ) : view === 'myBookings' ? (
             <div>
-              <h2>Meeting Rooms</h2>
+              <h2>My Bookings</h2>
 
-              {roomError ? (
-                <p>{roomError}</p>
-              ) : rooms.length === 0 ? (
-                <p>No rooms available</p>
+              {bookingError ? (
+                <p>{bookingError}</p>
+              ) : myBookings.length === 0 ? (
+                <p>No bookings found</p>
               ) : (
-                rooms.map((room) => (
-                  <div key={room.id}>
-                    <h3>{room.name}</h3>
-                    <p>Capacity: {room.capacity}</p>
-
-                    <button type="button" onClick={() => setSelectedRoom(room.id)}>
-                      Select Room
-                    </button>
+                myBookings.map((booking) => (
+                  <div key={booking.id}>
+                    <p>Room ID: {booking.room_id}</p>
+                    <p>Start: {booking.start_time}</p>
+                    <p>End: {booking.end_time}</p>
+                    <p>Status: {booking.status}</p>
+                    {booking.status === 'confirmed' && (
+                      <button
+                        type="button"
+                        onClick={() => cancelBooking(booking.id)}
+                      >
+                        Cancel Booking
+                      </button>
+                    )}
                   </div>
                 ))
               )}
-              {selectedRoom !== null && (<>
-                <p>{selectedRoom}</p>
-                <label htmlFor="Start_Time">Start Time</label>
-                <input
-                  id="Start_Time"
-                  type="datetime-local"
-                  value={startTime}
-                  onChange={(event) => setStartTime(event.target.value)}
-                  placeholder="Enter StartTime"
-                  name="Start_Time"
-                  required
-                />
 
-                <label htmlFor="End_Time">End Time</label>
-                <input
-                  id="End_Time"
-                  type="datetime-local"
-                  value={endTime}
-                  onChange={(event) => setEndTime(event.target.value)}
-                  placeholder="Enter EndTime"
-                  name="End_Time" s
-                  required
-                />
-
-                {Boolean(startTime && endTime) && (
-                  <button
-                    type="button"
-                  >Confirm Booking</button>
-                )}
-              </>)}
               <button
                 type="button"
                 onClick={() => setView('dashboard')}
@@ -177,21 +256,13 @@ function App() {
                 Back to Dashboard
               </button>
             </div>
+
           ) : (
-            <>
-              <button type="button" onClick={loadRooms}>
-                Book Room
-              </button>
-
-              <button type="button">My Bookings</button>
-
-              {currentUser.role === 'admin' && (
-                <>
-                  <button type="button">Manage Rooms</button>
-                  <button type="button">All Bookings</button>
-                </>
-              )}
-            </>
+            <DashboardPage
+              role={currentUser.role}
+              onBookRoom={loadRooms}
+              onMyBookings={loadMyBookings}
+            />
           )}
 
           <button type="button" onClick={handleLogout}>
@@ -199,34 +270,14 @@ function App() {
           </button>
         </>
       ) : (
-        <form onSubmit={handleLogin}>
-          <div className="container">
-            <label htmlFor="uname">Username</label>
-            <input
-              id="uname"
-              type="text"
-              value={Username}
-              onChange={(event) => setUsername(event.target.value)}
-              placeholder="Enter Username"
-              name="uname"
-              required
-            />
-
-            <label htmlFor="psw">Password</label>
-            <input
-              id="psw"
-              type="password"
-              value={Password}
-              onChange={(event) => setPassword(event.target.value)}
-              placeholder="Enter Password"
-              name="psw"
-              required
-            />
-
-            <button type="submit">Login</button>
-            <p>{message}</p>
-          </div>
-        </form>
+        <LoginPage
+          username={Username}
+          password={Password}
+          message={message}
+          onUsernameChange={setUsername}
+          onPasswordChange={setPassword}
+          onSubmit={handleLogin}
+        />
       )}
     </div >
   );
