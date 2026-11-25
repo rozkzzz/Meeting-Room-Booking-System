@@ -64,7 +64,7 @@ function RoomsPage({
             <p>{bookingMessage}</p>
             <button
                 type="button"
-                onClick={() => onBack}
+                onClick={onBack}
             >
                 Back to Dashboard
             </button>

@@ -3,6 +3,8 @@ import { useState } from 'react';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import RoomsPage from './pages/RoomsPage';
+import MyBookingsPage from './pages/MyBookingsPage';
+import { apiRequest } from './services/api';
 
 function App() {
   const [Username, setUsername] = useState('');
@@ -96,23 +98,14 @@ function App() {
     setRoomError('');
 
     try {
-      const response = await fetch('/api/rooms', {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
+      const data = await apiRequest('/rooms', {
+        token
       });
-      if (response.ok) {
-        const data = await response.json();
-        setRooms(data);
-        return;
-      } else
-        setRoomError('Cannot load rooms');
 
-      return;
+      setRooms(data);
 
     } catch (error) {
-      console.error(error);
-      setRoomError('Cannot load rooms');
+      setRoomError(error.message);
     }
   }
 
@@ -210,53 +203,25 @@ function App() {
             <p>Account is not active</p>
           ) : view === 'rooms' ? (
             <RoomsPage
-            rooms={rooms}
-            roomError={roomError}
-            selectedRoom={selectedRoom}
-            startTime={startTime}
-            endTime={endTime}
-            bookingMessage={bookingMessage}
-            onSelectRoom={selectedRoom}
-            onStartTimeChange={setStartTime}
-            onEndTimeChange={setEndTime}
-            onSubmitBooking={submitBooking}
-            onBack={setView}
+              rooms={rooms}
+              roomError={roomError}
+              selectedRoom={selectedRoom}
+              startTime={startTime}
+              endTime={endTime}
+              bookingMessage={bookingMessage}
+              onSelectRoom={setSelectedRoom}
+              onStartTimeChange={setStartTime}
+              onEndTimeChange={setEndTime}
+              onSubmitBooking={submitBooking}
+              onBack={() => setView('dashboard')}
             />
           ) : view === 'myBookings' ? (
-            <div>
-              <h2>My Bookings</h2>
-
-              {bookingError ? (
-                <p>{bookingError}</p>
-              ) : myBookings.length === 0 ? (
-                <p>No bookings found</p>
-              ) : (
-                myBookings.map((booking) => (
-                  <div key={booking.id}>
-                    <p>Room ID: {booking.room_id}</p>
-                    <p>Start: {booking.start_time}</p>
-                    <p>End: {booking.end_time}</p>
-                    <p>Status: {booking.status}</p>
-                    {booking.status === 'confirmed' && (
-                      <button
-                        type="button"
-                        onClick={() => cancelBooking(booking.id)}
-                      >
-                        Cancel Booking
-                      </button>
-                    )}
-                  </div>
-                ))
-              )}
-
-              <button
-                type="button"
-                onClick={() => setView('dashboard')}
-              >
-                Back to Dashboard
-              </button>
-            </div>
-
+            <MyBookingsPage
+              myBookings={myBookings}
+              bookingError={bookingError}
+              onCancelBooking={cancelBooking}
+              onBack={() => setView('dashboard')}
+            />
           ) : (
             <DashboardPage
               role={currentUser.role}
